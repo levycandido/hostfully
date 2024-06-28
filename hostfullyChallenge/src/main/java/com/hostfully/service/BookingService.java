@@ -24,7 +24,15 @@ public class BookingService {
     @Transactional
     public Booking createBooking(Booking booking) {
         validateBookingDates(booking);
-        return bookingRepository.save(booking);
+        Booking savedBooking = bookingRepository.save(booking);
+
+        Block block = new Block();
+        block.setStartDate(booking.getStartDate());
+        block.setEndDate(booking.getEndDate());
+        block.setPlace(booking.getPlace());
+        blockRepository.save(block);
+
+        return savedBooking;
     }
 
     @Transactional
@@ -60,11 +68,20 @@ public class BookingService {
     }
 
     @Transactional
-    public void cancelBooking(Long id) {
-        Booking booking = bookingRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Booking not found"));
-        booking.setStatus(status.CANCELED);
-        bookingRepository.save(booking);
+    public Booking cancel(Long bookingId) {
+        Optional<Booking> optionalBooking = bookingRepository.findById(bookingId);
+        if (optionalBooking.isPresent()) {
+            Booking booking = optionalBooking.get();
+            booking.setStatus(status.CANCELED);
+            bookingRepository.save(booking);
+
+            Optional<Block> optionalBlock = blockRepository.findById(bookingId);
+            optionalBlock.ifPresent(blockRepository::delete);
+
+            return booking;
+        } else {
+            throw new RuntimeException("Booking not found with id: " + bookingId);
+        }
     }
 
     @Transactional
